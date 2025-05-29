@@ -5,21 +5,12 @@ import requests
 import warnings
 from streamlit_option_menu import option_menu
 from streamlit_extras.mention import mention
-from utils import extract_text_from_pdf, create_chunks, SimpleChromaDB
 import tempfile
 warnings.filterwarnings("ignore")
 import os
-from dotenv import load_dotenv
 import random
 
-load_dotenv()
-warnings.filterwarnings("ignore")
-
-api_key = os.getenv('api_key')
-
-# Initialize ChromaDB manager
-if 'chroma_db' not in st.session_state:
-    st.session_state.chroma_db = SimpleChromaDB()
+api_key="AIzaSyC1gLQLeywaERy3PrV-AAgZEVV-pjU1tE8"
 
 generation_config = {
     "temperature": 0.1,  #  lower temperature for more focused responses
@@ -82,8 +73,8 @@ with st.sidebar:
 
     options = option_menu(
         "Dashboard", 
-        ["Home", "About Us", "Chat", "PDF Reader"],
-        icons=['book', 'globe', 'chat', 'file-pdf'],
+        ["Home", "About Us", "Chat"],
+        icons=['book', 'globe', 'chat'],
         menu_icon="book", 
         default_index=0,
         styles={
@@ -143,67 +134,12 @@ elif options == "About Us" :
     _Thanks for visiting. We hope Knetsu can brighten your day!_ 💗
     """)
 
-elif options == "PDF Reader":
-    st.title("PDF Knowledge Assistant")
-    
-    # PDF upload
-    uploaded_file = st.file_uploader("Upload a PDF document", type="pdf")
-    
-    if uploaded_file is not None:
-        # Process the PDF
-        with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-            tmp_file.write(uploaded_file.getvalue())
-            tmp_file_path = tmp_file.name
-        
-        # Extract text and create chunks
-        with st.spinner("Processing PDF..."):
-            text = extract_text_from_pdf(tmp_file_path)
-            chunks = create_chunks(text)
-            st.session_state.chroma_db.add_documents(chunks)
-            st.success("PDF processed!")
-        
-        # Query interface
-        query = st.text_input("Ask a question about the PDF:")
-        if query:
-            with st.spinner("Finding detailed answer..."):
-                # Get relevant chunks with more context
-                relevant_chunks = st.session_state.chroma_db.search(query, n_results=3)
-                
-                # Prepare detailed prompt
-                context = "\n\nContext Section " + "\nContext Section ".join([f"{i+1}: {chunk}" for i, chunk in enumerate(relevant_chunks)])
-                
-                prompt = f"""Based on the provided context sections from the PDF document, please provide a detailed and comprehensive answer to the question. 
-                If you find relevant information in multiple context sections, synthesize them together.
-                If the answer cannot be fully derived from the context, please indicate what information is missing.
-                
-                Context:
-                {context}
-                
-                Question: {query}
-                
-                Please provide a detailed answer, explaining your reasoning and citing specific parts of the context when relevant:"""
-                
-                # Get response from Gemini
-                response = model.generate_content(prompt)
-                
-                # Display response in a nice format
-                st.markdown("### Answer:")
-                st.markdown(response.text)
-                
-                # Show sources
-                with st.expander("View source sections from the document"):
-                    for i, chunk in enumerate(relevant_chunks):
-                        st.markdown(f"**Section {i+1}:**")
-                        st.markdown(chunk)
-                        st.markdown("---")
-
 elif options == 'Chat':
     st.title("💬 Love Chat with Knetsu")
 
     # Initialize chat session and messages ONCE
     if "chat_session" not in st.session_state or st.session_state.chat_session is None:
         st.session_state.chat_session = model.start_chat(history=[])
-        st.session_state.chat_session.send_message(SYSTEM_PROMPT)
 
         # Only send a flirty intro message, NOT the system prompt again
         flirty_intros = [
